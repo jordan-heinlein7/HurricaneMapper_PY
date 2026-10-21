@@ -18,6 +18,8 @@ processed_folder_path = Path.cwd().parent / 'data' / 'processed'
 arcpy.env.workspace = str(raw_folder_path)
 arcpy.env.overwriteOutput = True
 
+# set output csv file with tally of total number of counties affected each season
+output_csv = Path.cwd().parent / 'data' /'processed'/ 'AffectedCounty.csv'
 
 #Set model layers
 ibtracs_NA_points = str(raw_folder_path /'IBTrACS_NA.shp')
@@ -56,42 +58,62 @@ for storm_season in range(2000,2004):
     storm_dict[storm_season] = storm_names
 
 
-# %% [markdown]
-# #### Select point features corresponding to a specific storm (season & name)
-
-# %%
-#Select points for a given storm
-arcpy.analysis.Select(
-    in_features=ibtracs_NA_points, 
-    out_feature_class=storm_track_points, 
-    where_clause=f"SEASON = {storm_season} And NAME = '{storm_name}'"
-)
-
-# %% [markdown]
-# #### Connect Points to a Track line
-
-# %%
-#Connect point to a track line
-arcpy.management.PointsToLine(
-    Input_Features=storm_track_points,
-    Output_Feature_Class=storm_track_line,
-    Sort_Field='ISO_TIME'
-)
-
-# %% [markdown]
-# #### Select Counties Intersecting Point
-
-# %%
-#Select intersecting counties
-select_output = arcpy.management.SelectLayerByLocation(
-    in_layer=usa_counties, 
-    overlap_type="INTERSECT", 
-    select_features=storm_track_line, 
-    )
-select_result = select_output.getOutput(0)
-
 #%%
+# #### Select point features corresponding to a specific storm (season & name)
+# Create the file object to the output csv
+out_file = open(output_csv, "w")
 
-# count the selected counties, save output to variable as integer
-county_count = int(arcpy.management.GetCount(select_result).getOutput(0))
+# write header line 
+out_file.write('Storm_Season, Counties_affected\n')
 
+# Iterate through each season (key) in storm dictionary
+for storm_season in storm_dict.keys():
+
+    # initialize season storm counter
+    season_counter = 0
+
+    # get the list of storms in the season
+    storm_names = storm_dict[storm_season]
+
+    # iterate through storm names in the list
+    for storm_name in storm_names:
+
+        #update status
+        print(f'Working on {storm_name} in {storm_season}')
+
+        #Select points for a given storm
+        arcpy.analysis.Select(
+                in_features=ibtracs_NA_points, 
+                out_feature_class=storm_track_points, 
+                where_clause=f"SEASON = {storm_season} And NAME = '{storm_name}'"
+            )
+
+        #Connect point to a track line
+        arcpy.management.PointsToLine(
+                Input_Features=storm_track_points,
+                Output_Feature_Class=storm_track_line,
+                Sort_Field='ISO_TIME'
+            )
+
+        #Select intersecting counties
+        select_output = arcpy.management.SelectLayerByLocation(
+                in_layer=usa_counties, 
+                overlap_type="INTERSECT", 
+                select_features=storm_track_line, 
+                )
+        select_result = select_output.getOutput(0)
+
+        # count the selected counties, save output to variable as integer
+        county_count = int(arcpy.management.GetCount(select_result).getOutput(0))
+
+         # increment the season_counter
+        season_counter += county_count
+
+    #print out storm season and county count
+    out_file.write(f'{storm_season}, {season_counter}\n')
+
+# close the file
+out_file.close()
+
+
+# %%
