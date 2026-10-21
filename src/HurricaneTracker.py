@@ -18,11 +18,6 @@ processed_folder_path = Path.cwd().parent / 'data' / 'processed'
 arcpy.env.workspace = str(raw_folder_path)
 arcpy.env.overwriteOutput = True
 
-# %%
-#Set storm variable
-storm_season = 2024
-storm_name = "HELENE"
-affected_counties = processed_folder_path / 'affected_counties.shp'
 
 #Set model layers
 ibtracs_NA_points = str(raw_folder_path /'IBTrACS_NA.shp')
@@ -31,31 +26,35 @@ storm_track_points =  "memory\\track_points"
 storm_track_line = "memory\\Tracklines"
 
 #%%
-# create a list to hold storm names for each season
-storm_names = []
+# create dictionary of storm names (value is a list) for each season (key)
+storm_dict = {}
 
-# Create a list of storm names for a given year using search cursor
-cursor = arcpy.da.SearchCursor(
-    in_table= ibtracs_NA_points,
-    where_clause= 'SEASON = 2000',
-    field_names= ['NAME']
-)
+# Loop through each season
+for storm_season in range(2000,2004):
 
-# iterate through rows in the cursor (ibracs file)
-for row in cursor:
-        #get the storm name
-        storm_name = row[0]
-        #append only unique storm names (no duplicates) and storms not unnamed
-        if not storm_name in storm_names and storm_name != 'UNNAMED':
-                storm_names.append(storm_name)
+    # create a list to hold storm names for each season
+    storm_names = []
 
-del(cursor)
+    # Create a list of storm names for a given year using search cursor
+    cursor = arcpy.da.SearchCursor(
+        in_table= ibtracs_NA_points,
+        where_clause= f'SEASON = {storm_season}',
+        field_names= ['NAME']
+    )
 
-# print storm names for input season
-print(storm_names)
+    # iterate through rows in the cursor (ibracs file)
+    for row in cursor:
+            #get the storm name
+            storm_name = row[0]
+            #append only unique storm names (no duplicates) and storms not unnamed
+            if not storm_name in storm_names and storm_name != 'UNNAMED':
+                    storm_names.append(storm_name)
 
-# confirm correct number of storms in the storm_names list
-len(storm_names)
+    del(cursor)
+
+    # add key:value pairs to the empty dictionary
+    storm_dict[storm_season] = storm_names
+
 
 # %% [markdown]
 # #### Select point features corresponding to a specific storm (season & name)
